@@ -20,6 +20,9 @@ endif()
 set(STATE_SUBDIR "")
 if(APPLICATION_NAME STREQUAL "Nextcloud" OR APPLICATION_NAME STREQUAL "NextcloudDev")
     set(STATE_SUBDIR "nextcloud/")
+elseif(APPLICATION_NAME STREQUAL "Vilcanet Nube")
+    # Iconos de la bandeja con la nube de Vilcanet y una insignia por estado
+    set(STATE_SUBDIR "vilcanet/")
 endif()
 
 # Embed the call-notification ringtone only on platforms that actually play
