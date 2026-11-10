@@ -28,6 +28,8 @@ jobs:
       KDE_BLUEPRINTS_URL: https://github.com/nextcloud/craft-blueprints-kde.git
       VILCANET_BLUEPRINTS_URL: https://github.com/dayersvid/vilcanet-nube-craft-blueprints.git
       VILCANET_BLUEPRINTS_REF: vilcanet
+      # Contador de compilaciones de este flujo; el blueprint lo pasa como MIRALL_VERSION_BUILD.
+      VILCANET_BUILD: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -132,7 +134,10 @@ jobs:
               if($texto -notmatch "set\(\s*MIRALL_VERSION_$n\s+(\d+)") { throw "No se encontro MIRALL_VERSION_$n en VERSION.cmake." }
               $Matches[1]
           }
-          $version = $partes -join "."
+          # Cuarta parte: contador de compilaciones (1, 2, 3...). Windows no admite mas de 65535 por parte.
+          $compilacion = [int]$env:VILCANET_BUILD
+          if($compilacion -lt 1 -or $compilacion -gt 65535) { throw "Numero de compilacion fuera de rango (1 a 65535): $compilacion." }
+          $version = ($partes -join ".") + ".$compilacion"
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "Version: $version"
 
