@@ -1017,7 +1017,7 @@ void AccountWizardController::openSignup()
 
 void AccountWizardController::openSelfHostedServerGuide()
 {
-    Utility::openBrowser(QUrl(QStringLiteral("https://docs.nextcloud.com/server/latest/admin_manual/installation/#installation")));
+    Utility::openBrowser(QUrl(QStringLiteral("https://mi-nube.vilcanet.com.ec/empezar/")));
 }
 
 void AccountWizardController::openProxySettings()

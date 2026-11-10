@@ -1,0 +1,161 @@
+# SPDX-FileCopyrightText: 2022 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2026 Vilcanet
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Instalador de Windows x64 de «Vilcanet Nube». Solo a mano, sin firma, sin secretos y sin pruebas.
+# Basado en windows-build-and-test.yml, que no se modifica.
+name: Vilcanet Nube - instalador de Windows
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instalador:
+    name: Instalador NSIS (Windows x64)
+    runs-on: windows-2022
+    timeout-minutes: 350
+    env:
+      CRAFT_TARGET: windows-msvc2022_64-cl
+      CRAFT_MASTER_LOCATION: ${{ github.workspace }}\CraftMaster
+      CRAFT_MASTER_CONFIG: ${{ github.workspace }}\craftmaster.ini
+      PYTHON_VERSION: '3.12'
+      KDE_BLUEPRINTS_URL: https://github.com/nextcloud/craft-blueprints-kde.git
+      VILCANET_BLUEPRINTS_URL: https://github.com/dayersvid/vilcanet-nube-craft-blueprints.git
+      VILCANET_BLUEPRINTS_REF: vilcanet
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Resolver revisiones de Craft y de los blueprints
+        id: craft-revisions
+        shell: pwsh
+        run: |
+          function configValue($key) {
+              $escapedKey = [regex]::Escape($key)
+              $matches = @(Select-String -Path "${{ env.CRAFT_MASTER_CONFIG }}" -Pattern "^\s*$escapedKey\s*=\s*(.+?)\s*$")
+              if($matches.Count -ne 1) {
+                  throw "Se esperaba un solo valor de $key en craftmaster.ini."
+              }
+              return $matches[0].Matches[0].Groups[1].Value.Trim()
+          }
+
+          function remoteRevision($repository, $ref) {
+              $revision = git ls-remote $repository $ref
+              if($LASTEXITCODE -ne 0 -or !$revision) {
+                  throw "No se pudo resolver $ref en $repository."
+              }
+              return ($revision -split '\s+')[0]
+          }
+
+          $craftRevision = configValue "CraftRevision"
+          $kdeBlueprintRef = configValue "craft/craft-blueprints-kde.revision"
+          $kdeBlueprintRevision = remoteRevision "${{ env.KDE_BLUEPRINTS_URL }}" "refs/heads/$kdeBlueprintRef"
+          $vilcanetBlueprintRevision = remoteRevision "${{ env.VILCANET_BLUEPRINTS_URL }}" "refs/heads/${{ env.VILCANET_BLUEPRINTS_REF }}"
+          @(
+              "kde_ref=$kdeBlueprintRef"
+              "key=$craftRevision-$kdeBlueprintRevision-$vilcanetBlueprintRevision"
+          ) | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Recuperar dependencias de Craft
+        id: craft-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.CRAFT_MASTER_LOCATION }}
+            ${{ github.workspace }}\craft-clone
+            ${{ github.workspace }}\${{ env.CRAFT_TARGET }}
+          key: ${{ runner.os }}-craft-vilcanet-v1-${{ env.CRAFT_TARGET }}-python-${{ env.PYTHON_VERSION }}-${{ steps.craft-revisions.outputs.key }}
+
+      - name: Instalar Craft Master y las dependencias
+        if: steps.craft-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          & cmd /C "git clone -q --depth=1 https://github.com/KDE/craftmaster.git ${{ env.CRAFT_MASTER_LOCATION }} 2>&1"
+
+          function craft() {
+              python "${{ env.CRAFT_MASTER_LOCATION }}\CraftMaster.py" --config "${{ env.CRAFT_MASTER_CONFIG }}" --target ${{ env.CRAFT_TARGET }} -c $args
+              if($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          }
+
+          craft --add-blueprint-repository "${{ env.KDE_BLUEPRINTS_URL }}|${{ steps.craft-revisions.outputs.kde_ref }}|"
+          craft --add-blueprint-repository "${{ env.VILCANET_BLUEPRINTS_URL }}|${{ env.VILCANET_BLUEPRINTS_REF }}|"
+          craft craft
+          craft --install-deps nextcloud-client
+
+      - name: Guardar dependencias de Craft
+        if: steps.craft-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.CRAFT_MASTER_LOCATION }}
+            ${{ github.workspace }}\craft-clone
+            ${{ github.workspace }}\${{ env.CRAFT_TARGET }}
+          key: ${{ runner.os }}-craft-vilcanet-v1-${{ env.CRAFT_TARGET }}-python-${{ env.PYTHON_VERSION }}-${{ steps.craft-revisions.outputs.key }}
+
+      - name: Instalar Inkscape
+        shell: pwsh
+        run: |
+          choco install inkscape
+
+      - name: Preparar PATH
+        shell: pwsh
+        run: |
+          echo "${{ github.workspace }}\${{ env.CRAFT_TARGET }}\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Compilar
+        shell: pwsh
+        run: |
+          function craft() {
+              python "${{ env.CRAFT_MASTER_LOCATION }}\CraftMaster.py" --config "${{ env.CRAFT_MASTER_CONFIG }}" --target ${{ env.CRAFT_TARGET }} -c $args
+              if($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          }
+
+          craft --src-dir ${{ github.workspace }} nextcloud-client
+
+      - name: Empaquetar el instalador NSIS
+        shell: pwsh
+        run: |
+          function craft() {
+              python "${{ env.CRAFT_MASTER_LOCATION }}\CraftMaster.py" --config "${{ env.CRAFT_MASTER_CONFIG }}" --target ${{ env.CRAFT_TARGET }} -c $args
+              if($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          }
+
+          craft --src-dir ${{ github.workspace }} --package nextcloud-client
+
+      - name: Reunir el instalador y calcular SHA-256
+        shell: pwsh
+        run: |
+          $salida = "${{ github.workspace }}\instalador"
+          New-Item -ItemType Directory -Force $salida | Out-Null
+          $tmp = "${{ github.workspace }}\${{ env.CRAFT_TARGET }}\tmp"
+          $instaladores = @(Get-ChildItem -Path $tmp -Filter *.exe -File -ErrorAction SilentlyContinue)
+          if($instaladores.Count -eq 0) {
+              Write-Host "No hay ningun .exe en $tmp. Contenido:"
+              Get-ChildItem -Path $tmp -ErrorAction SilentlyContinue | Format-Table Name, Length
+              throw "El empaquetado no produjo un instalador."
+          }
+          foreach($archivo in $instaladores) {
+              Copy-Item $archivo.FullName $salida
+              $hash = (Get-FileHash $archivo.FullName -Algorithm SHA256).Hash.ToLower()
+              "$hash  $($archivo.Name)" | Tee-Object -FilePath "$salida\SHA256SUMS.txt" -Append
+              "$($archivo.Name): $($archivo.Length) bytes"
+          }
+
+      - name: Subir el instalador
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vilcanet-nube-windows-x64
+          path: ${{ github.workspace }}\instalador
+          if-no-files-found: error
+          retention-days: 30

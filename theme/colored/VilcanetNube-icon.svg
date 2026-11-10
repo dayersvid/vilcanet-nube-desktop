@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Vilcanet Nube: ícono PROVISIONAL (hasta que David entregue el definitivo). Sin texto: no depende de fuentes. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="224" fill="#0B5CAB"/>
+  <g fill="#ffffff">
+    <circle cx="350" cy="580" r="150"/>
+    <circle cx="512" cy="450" r="200"/>
+    <circle cx="684" cy="580" r="150"/>
+    <rect x="350" y="540" width="334" height="190"/>
+  </g>
+  <polyline points="412,470 512,640 612,470" fill="none" stroke="#0B5CAB" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

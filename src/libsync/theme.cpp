@@ -662,7 +662,7 @@ QString Theme::gitSHA1() const
     QString devString;
 #ifdef GIT_SHA1
     const QString githubPrefix(QLatin1String(
-        "https://github.com/nextcloud/desktop/commit/"));
+        "https://github.com/dayersvid/vilcanet-nube-desktop/commit/"));
     const QString gitSha1(QLatin1String(GIT_SHA1));
     //: %1 is the full Git commit URL. %2 is the abbreviated Git revision. %3 is the build date.
     //: %4 is the build time. %5 is the Qt version. %6 is the TLS library version.
