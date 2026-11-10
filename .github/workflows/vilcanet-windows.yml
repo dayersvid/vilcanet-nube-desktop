@@ -7,6 +7,11 @@
 name: Vilcanet Nube - instalador de Windows
 on:
   workflow_dispatch:
+    inputs:
+      receta_ref:
+        description: Rama de la receta (vilcanet-nube-craft-blueprints)
+        required: false
+        default: vilcanet
 
 permissions:
   contents: read
@@ -27,7 +32,8 @@ jobs:
       PYTHON_VERSION: '3.12'
       KDE_BLUEPRINTS_URL: https://github.com/nextcloud/craft-blueprints-kde.git
       VILCANET_BLUEPRINTS_URL: https://github.com/dayersvid/vilcanet-nube-craft-blueprints.git
-      VILCANET_BLUEPRINTS_REF: vilcanet
+      # Rama de la receta: «vilcanet» salvo que se pida otra al lanzar (para probar una rama sin tocar la principal).
+      VILCANET_BLUEPRINTS_REF: ${{ inputs.receta_ref || 'vilcanet' }}
       # Contador de compilaciones de este flujo; el blueprint lo pasa como MIRALL_VERSION_BUILD.
       VILCANET_BUILD: ${{ github.run_number }}
     steps:
