@@ -24,6 +24,10 @@
 #endif
 
 #include <QAbstractButton>
+#include <QComboBox>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScopedValueRollback>
@@ -36,6 +40,58 @@ GeneralSettings::GeneralSettings(QWidget *parent)
     , _ui(new Ui::GeneralSettings)
 {
     _ui->setupUi(this);
+
+    // Vilcanet Nube: language selector. It writes the "language" key of [General] in the
+    // configuration file (empty = follow the Windows language). The key is read at startup
+    // only, so a change needs a restart. Built here, before SettingsPanelStyle::apply().
+    {
+        auto *languageLabel = new QLabel(tr("Language"), this);
+        languageLabel->setObjectName(QStringLiteral("languageLabel"));
+        auto *languageComboBox = new QComboBox(this);
+        languageComboBox->setObjectName(QStringLiteral("languageComboBox"));
+        languageComboBox->addItem(tr("Automatic"), QString());
+        languageComboBox->addItem(QString::fromUtf8("Espa" "\xc3\xb1" "ol"), QStringLiteral("es"));
+        languageComboBox->addItem(QStringLiteral("English"), QStringLiteral("en"));
+        const auto configuredLanguage = ConfigFile().language();
+        auto languageIndex = 0;
+        if (configuredLanguage.startsWith(QLatin1String("es"))) {
+            languageIndex = 1;
+        } else if (configuredLanguage.startsWith(QLatin1String("en"))) {
+            languageIndex = 2;
+        } else if (!configuredLanguage.isEmpty()) {
+            // A language set by hand in the configuration file is kept as it is.
+            languageComboBox->addItem(configuredLanguage, configuredLanguage);
+            languageIndex = 3;
+        }
+        languageComboBox->setCurrentIndex(languageIndex);
+        languageLabel->setBuddy(languageComboBox);
+
+        auto *languageRow = new QHBoxLayout;
+        languageRow->setObjectName(QStringLiteral("languageRow"));
+        languageRow->addWidget(languageLabel);
+        languageRow->addStretch();
+        languageRow->addWidget(languageComboBox);
+
+        auto *languageSeparator = new QFrame(this);
+        languageSeparator->setObjectName(QStringLiteral("languageSeparator"));
+        languageSeparator->setFrameShape(QFrame::HLine);
+        languageSeparator->setFrameShadow(QFrame::Plain);
+
+        _ui->generalSettingsLayout->insertLayout(0, languageRow);
+        _ui->generalSettingsLayout->insertWidget(1, languageSeparator);
+
+        connect(languageComboBox, &QComboBox::activated, this, [this, languageComboBox](int index) {
+            const auto language = languageComboBox->itemData(index).toString();
+            ConfigFile cfg;
+            if (cfg.language() == language) {
+                return;
+            }
+            cfg.setLanguage(language);
+            QMessageBox::information(this, tr("Language"),
+                tr("The language will change the next time %1 starts. Quit it from its icon next to the clock and open it again.")
+                    .arg(Theme::instance()->appNameGUI()));
+        });
+    }
 
     connect(_ui->serverNotificationsCheckBox, &QAbstractButton::toggled,
         this, &GeneralSettings::slotToggleOptionalServerNotifications);

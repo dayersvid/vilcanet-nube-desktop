@@ -3631,6 +3631,18 @@ Para usuarios avanzados: Este problema puede estar relacionado a múltiples arch
 <context>
     <name>OCC::GeneralSettings</name>
     <message>
+        <source>Language</source>
+        <translation>Idioma</translation>
+    </message>
+    <message>
+        <source>Automatic</source>
+        <translation>Automático</translation>
+    </message>
+    <message>
+        <source>The language will change the next time %1 starts. Quit it from its icon next to the clock and open it again.</source>
+        <translation>El idioma cambiará la próxima vez que se inicie %1. Ciérrelo desde su icono junto al reloj y ábralo de nuevo.</translation>
+    </message>
+    <message>
         <location filename="../src/gui/generalsettings.ui" line="259"/>
         <source>Show Call Notifications</source>
         <translation>Mostrar notificaciones de llamadas</translation>
