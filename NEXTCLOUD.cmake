@@ -19,7 +19,7 @@ endif()
 set( APPLICATION_CONFIG_NAME "${APPLICATION_EXECUTABLE}" )
 set( APPLICATION_DOMAIN     "vilcanet.com.ec" )
 set( APPLICATION_VENDOR     "Vilcanet" )
-set( APPLICATION_UPDATE_URL "https://updates.nextcloud.org/client/" CACHE STRING "URL for updater" )
+set( APPLICATION_UPDATE_URL "https://mi-nube.vilcanet.com.ec/actualizaciones/" CACHE STRING "URL for updater" )
 set( APPLICATION_HELP_URL   "https://mi-nube.vilcanet.com.ec/empezar/" CACHE STRING "URL for the help menu" )
 
 # Default macOS builds (Nextcloud + NextcloudDev) use the Icon Composer (.icon)

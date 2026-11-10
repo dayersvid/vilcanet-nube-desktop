@@ -654,7 +654,7 @@ QUrl Theme::signupUrlForBranding(const QString &configuredUrl)
         && (url.scheme() == u"http"_s || url.scheme() == u"https"_s)) {
         return url;
     }
-    return QUrl(u"https://nextcloud.com/sign-up/?flow=V3"_s);
+    return QUrl(u"https://mi-nube.vilcanet.com.ec/empezar/"_s);
 }
 
 QString Theme::gitSHA1() const
