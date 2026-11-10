@@ -117,6 +117,27 @@ void Flow2Auth::fetchNewToken(const TokenAction action)
             }
         }
 
+        // Vilcanet Nube: ask the server to show the login pages in the language this program is
+        // running in. Only "es" or "en" are ever sent; with any other language, or when no
+        // translation was loaded, the address is left exactly as the server returned it.
+        // The server honours the parameter on its login pages only (nginx rule).
+        {
+            const auto uiLanguage = qApp->property("ui_lang").toString();
+            QString loginLanguage;
+            if (uiLanguage.startsWith(QLatin1String("es"))) {
+                loginLanguage = QStringLiteral("es");
+            } else if (uiLanguage.startsWith(QLatin1String("en"))) {
+                loginLanguage = QStringLiteral("en");
+            }
+            if (!loginLanguage.isEmpty()) {
+                auto query = QUrlQuery(_loginUrl);
+                if (!query.hasQueryItem(QStringLiteral("lang"))) {
+                    query.addQueryItem(QStringLiteral("lang"), loginLanguage);
+                    _loginUrl.setQuery(query);
+                }
+            }
+        }
+
         _pollToken = pollToken;
         _pollEndpoint = pollEndpoint;
 
