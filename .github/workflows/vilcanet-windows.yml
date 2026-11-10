@@ -123,6 +123,19 @@ jobs:
 
           craft --src-dir ${{ github.workspace }} nextcloud-client
 
+      - name: Leer la version del programa
+        id: version
+        shell: pwsh
+        run: |
+          $texto = Get-Content "${{ github.workspace }}\VERSION.cmake" -Raw
+          $partes = foreach($n in "MAJOR", "MINOR", "PATCH") {
+              if($texto -notmatch "set\(\s*MIRALL_VERSION_$n\s+(\d+)") { throw "No se encontro MIRALL_VERSION_$n en VERSION.cmake." }
+              $Matches[1]
+          }
+          $version = $partes -join "."
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "Version: $version"
+
       - name: Empaquetar el instalador NSIS
         shell: pwsh
         run: |
@@ -131,6 +144,7 @@ jobs:
               if($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
           }
 
+          $env:VILCANET_VERSION = "${{ steps.version.outputs.version }}"
           craft --src-dir ${{ github.workspace }} --package nextcloud-client
 
       - name: Reunir el instalador y calcular SHA-256
@@ -145,12 +159,25 @@ jobs:
               Get-ChildItem -Path $tmp -ErrorAction SilentlyContinue | Format-Table Name, Length
               throw "El empaquetado no produjo un instalador."
           }
-          foreach($archivo in $instaladores) {
-              Copy-Item $archivo.FullName $salida
-              $hash = (Get-FileHash $archivo.FullName -Algorithm SHA256).Hash.ToLower()
-              "$hash  $($archivo.Name)" | Tee-Object -FilePath "$salida\SHA256SUMS.txt" -Append
-              "$($archivo.Name): $($archivo.Length) bytes"
+          if($instaladores.Count -ne 1) {
+              $instaladores | Format-Table Name, Length
+              throw "Se esperaba un solo instalador y hay $($instaladores.Count)."
           }
+          # Craft lo nombra por el paquete (nextcloud-client-...): se publica con el nombre de la marca.
+          $nombre = "VilcanetNube-${{ steps.version.outputs.version }}-windows-x64.exe"
+          $destino = Join-Path $salida $nombre
+          Copy-Item $instaladores[0].FullName $destino
+          $hash = (Get-FileHash $destino -Algorithm SHA256).Hash.ToLower()
+          "$hash  $nombre" | Tee-Object -FilePath "$salida\SHA256SUMS.txt"
+          "${nombre}: $((Get-Item $destino).Length) bytes (original: $($instaladores[0].Name))"
+          # El instalador debe traer el programa: se comprueba antes de publicarlo.
+          $revision = "${{ runner.temp }}\revision-instalador"
+          & 7z x -y "-o$revision" $destino "*.7z" | Out-Null
+          $datos = Get-ChildItem -Path $revision -Filter *.7z -File | Select-Object -First 1
+          if(!$datos) { throw "No se pudo abrir el instalador para revisarlo." }
+          $lista = & 7z l $datos.FullName
+          if(!($lista | Select-String -SimpleMatch "bin\vilcanet-nube.exe")) { throw "El paquete no contiene bin\vilcanet-nube.exe." }
+          "Comprobado: el paquete contiene bin\vilcanet-nube.exe"
 
       - name: Subir el instalador
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
