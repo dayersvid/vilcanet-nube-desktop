@@ -114,7 +114,13 @@ static const char optionsC[] =
             return devTrPath;
         }
 #if defined(Q_OS_WIN)
-        return QApplication::applicationDirPath() + QLatin1String("/i18n/");
+        // Vilcanet Nube: the Craft NSIS layout puts the executable in bin/ and the
+        // translations next to it, one level up (<install dir>/i18n).
+        const auto besideExecutable = QString{QApplication::applicationDirPath() + QLatin1String("/i18n/")};
+        if (QDir(besideExecutable).exists()) {
+            return besideExecutable;
+        }
+        return QDir::cleanPath(QApplication::applicationDirPath() + QLatin1String("/../i18n")) + QLatin1Char('/');
 #elif defined(Q_OS_MACOS)
         return QApplication::applicationDirPath() + QLatin1String("/../Resources/Translations"); // path defaults to app dir.
 #elif defined(Q_OS_UNIX)
@@ -1284,13 +1290,20 @@ void Application::setupTranslations()
     qCInfo(lcApplication) << "System UI languages are:" << QLocale::system().uiLanguages();
     auto choosenLanguage = enforcedLanguage();
     if (choosenLanguage.isEmpty()) {
-        for(const auto &localeToTest : QLocale::system().uiLanguages(QLocale::TagSeparator::Underscore)){
+        for(const auto &systemLocale : QLocale::system().uiLanguages(QLocale::TagSeparator::Underscore)){
+            // Vilcanet Nube: every Spanish variant uses the general Spanish catalog, which is
+            // the complete one (the regional ones, such as es_EC, are only partly translated).
+            const auto localeToTest = systemLocale.startsWith(QLatin1String("es_")) ? QStringLiteral("es") : systemLocale;
             const auto trFile = QString{QLatin1String{"client_"} + localeToTest};
             qCDebug(lcApplication()) << "trying to load" << localeToTest << "in" << trFile << "from" << trPath;
             if (translator->load(trFile, trPath)) {
                 choosenLanguage = localeToTest;
                 break;
             }
+        }
+        // Vilcanet Nube: Spanish is the default when Windows uses a language without a catalog.
+        if (choosenLanguage.isEmpty() && translator->load(QStringLiteral("client_es"), trPath)) {
+            choosenLanguage = QStringLiteral("es");
         }
     } else {
         const QString trFile = QLatin1String("client_") + choosenLanguage;
